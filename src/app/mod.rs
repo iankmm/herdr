@@ -3885,6 +3885,95 @@ mod tests {
     }
 
     #[test]
+    fn pane_split_inherits_agent_executable_from_target_pane() {
+        let mut app = test_app();
+        let mut workspace = Workspace::test_new("agent-split");
+        let codex_pane = workspace.tabs[0].root_pane;
+        let gemini_pane = workspace.test_split(ratatui::layout::Direction::Horizontal);
+        app.state.workspaces = vec![workspace];
+        app.state.ensure_test_terminals();
+
+        let codex_terminal_id = app.state.workspaces[0]
+            .terminal_id(codex_pane)
+            .cloned()
+            .unwrap();
+        app.state
+            .terminals
+            .get_mut(&codex_terminal_id)
+            .unwrap()
+            .set_detected_state(
+                Some(crate::detect::Agent::Codex),
+                crate::detect::AgentState::Idle,
+            );
+        let gemini_terminal_id = app.state.workspaces[0]
+            .terminal_id(gemini_pane)
+            .cloned()
+            .unwrap();
+        app.state
+            .terminals
+            .get_mut(&gemini_terminal_id)
+            .unwrap()
+            .set_detected_state(
+                Some(crate::detect::Agent::Gemini),
+                crate::detect::AgentState::Working,
+            );
+
+        assert_eq!(
+            app.inherited_agent_argv_for_pane_in_workspace(0, codex_pane),
+            Some(vec!["codex".to_string()])
+        );
+        assert_eq!(
+            app.inherited_agent_argv_for_pane_in_workspace(0, gemini_pane),
+            Some(vec!["gemini".to_string()])
+        );
+    }
+
+    #[test]
+    fn pane_split_without_known_agent_keeps_shell_behavior() {
+        let mut app = test_app();
+        let workspace = Workspace::test_new("shell-split");
+        let pane_id = workspace.tabs[0].root_pane;
+        app.state.workspaces = vec![workspace];
+        app.state.ensure_test_terminals();
+
+        assert_eq!(
+            app.inherited_agent_argv_for_pane_in_workspace(0, pane_id),
+            None
+        );
+    }
+
+    #[test]
+    fn inherited_agent_split_uses_source_cwd_over_terminal_policy() {
+        let mut app = test_app();
+        let workspace = Workspace::test_new("agent-cwd-split");
+        let pane_id = workspace.tabs[0].root_pane;
+        app.state.workspaces = vec![workspace];
+        app.state.ensure_test_terminals();
+        app.state.new_terminal_cwd = crate::config::NewTerminalCwdConfig::Home;
+
+        let terminal_id = app.state.workspaces[0]
+            .terminal_id(pane_id)
+            .cloned()
+            .unwrap();
+        app.state.terminals.get_mut(&terminal_id).unwrap().cwd =
+            std::path::PathBuf::from("/tmp/herdr-agent-source");
+
+        assert_eq!(
+            app.resolve_pane_split_cwd(0, pane_id, None, true),
+            std::path::PathBuf::from("/tmp/herdr-agent-source")
+        );
+        assert_eq!(
+            app.resolve_pane_split_cwd(
+                0,
+                pane_id,
+                Some(std::path::PathBuf::from("/tmp/herdr-explicit")),
+                true,
+            ),
+            std::path::PathBuf::from("/tmp/herdr-explicit")
+        );
+    }
+
+    #[test]
     fn server_stop_request_sets_should_quit_flag() {
         let mut app = test_app();
 

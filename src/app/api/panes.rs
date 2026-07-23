@@ -50,10 +50,14 @@ impl App {
             Err((code, message)) => return encode_error(id, &code, message),
         };
         let (rows, cols) = self.state.estimate_pane_size();
-        let split_cwd = params.cwd.map(std::path::PathBuf::from).or_else(|| {
-            let follow_cwd = self.launch_cwd_for_pane_in_workspace(ws_idx, target_pane_id);
-            Some(self.resolve_new_terminal_cwd(follow_cwd))
-        });
+        let inherited_agent_argv =
+            self.inherited_agent_argv_for_pane_in_workspace(ws_idx, target_pane_id);
+        let split_cwd = Some(self.resolve_pane_split_cwd(
+            ws_idx,
+            target_pane_id,
+            params.cwd.map(std::path::PathBuf::from),
+            inherited_agent_argv.is_some(),
+        ));
         let default_shell = self.state.default_shell.clone();
         let scrollback_limit_bytes = self.state.pane_scrollback_limit_bytes;
         let host_terminal_theme = self.state.host_terminal_theme;
@@ -66,8 +70,33 @@ impl App {
             crate::api::schema::SplitDirection::Down => ratatui::layout::Direction::Vertical,
         };
         let shell_config = crate::pane::PaneShellConfig::new(&default_shell, self.state.shell_mode);
-        let split_result = match params.ratio {
-            Some(ratio) => ws.split_pane_with_ratio(
+        let split_result = match (inherited_agent_argv.as_deref(), params.ratio) {
+            (Some(argv), Some(ratio)) => ws.split_pane_argv_command_with_ratio(
+                target_pane_id,
+                direction,
+                ratio,
+                rows,
+                cols,
+                split_cwd,
+                argv,
+                extra_env,
+                scrollback_limit_bytes,
+                host_terminal_theme,
+                params.focus,
+            ),
+            (Some(argv), None) => ws.split_pane_argv_command(
+                target_pane_id,
+                direction,
+                rows,
+                cols,
+                split_cwd,
+                argv,
+                extra_env,
+                scrollback_limit_bytes,
+                host_terminal_theme,
+                params.focus,
+            ),
+            (None, Some(ratio)) => ws.split_pane_with_ratio(
                 target_pane_id,
                 direction,
                 ratio,
@@ -80,7 +109,7 @@ impl App {
                 extra_env,
                 params.focus,
             ),
-            None => ws.split_pane(
+            (None, None) => ws.split_pane(
                 target_pane_id,
                 direction,
                 rows,
