@@ -137,6 +137,7 @@ pub(super) fn keybind_help_groups(app: &AppState) -> Vec<HelpGroup> {
     groups.push(("workspaces / tabs", workspace_tab));
 
     let panes = vec![
+        help_entry(keybind_label(&kb.new_terminal), "new terminal below"),
         help_entry(keybind_label(&kb.split_vertical), "split vertical"),
         help_entry(keybind_label(&kb.split_horizontal), "split horizontal"),
         help_entry(keybind_label(&kb.close_pane), "close pane"),

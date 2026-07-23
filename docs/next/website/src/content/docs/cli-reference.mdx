@@ -174,7 +174,7 @@ herdr pane focus --direction left|right|up|down [--pane ID|--current]
 herdr pane resize --direction left|right|up|down [--amount FLOAT] [--pane ID|--current]
 herdr pane zoom [<pane_id>|--pane ID|--current] [--toggle|--on|--off]
 herdr pane rename <pane_id> <label>|--clear
-herdr pane split [<pane_id>|--pane ID|--current] --direction right|down [--ratio FLOAT] [--cwd PATH] [--env KEY=VALUE] [--focus] [--no-focus]
+herdr pane split [<pane_id>|--pane ID|--current] --direction right|down [--ratio FLOAT] [--cwd PATH] [--env KEY=VALUE] [--shell] [--focus] [--no-focus]
 herdr pane swap --direction left|right|up|down [--pane ID|--current]
 herdr pane swap --source-pane ID --target-pane ID
 herdr pane move <pane_id> --tab <tab_id> --split right|down [--target-pane ID] [--ratio FLOAT] [--focus|--no-focus]
@@ -192,6 +192,7 @@ When the target pane is running a recognized agent, the split starts a fresh
 instance of the same agent executable and uses the target pane's live working
 directory. An explicit `--cwd` still takes precedence. Splitting a plain shell
 or a pane with an unknown agent keeps the normal shell-pane behavior.
+Pass `--shell` to force a plain shell split when the target contains an agent.
 After `pane move`, use `.result.move_result.pane.pane_id` for later commands. A cross-workspace move changes the workspace-qualified pane ID; the prior value remains at `.result.move_result.previous_pane_id`. The running process keeps its launch-time `HERDR_PANE_ID`, `HERDR_TAB_ID`, and `HERDR_WORKSPACE_ID`; Herdr retains the old pane ID as an alias for that terminal, so pane commands using `--current` still resolve it. A live agent name follows the terminal and continues to resolve after the move.
 
 Read output:

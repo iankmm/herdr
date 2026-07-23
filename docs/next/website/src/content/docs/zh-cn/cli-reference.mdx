@@ -170,7 +170,7 @@ herdr pane focus --direction left|right|up|down [--pane ID|--current]
 herdr pane resize --direction left|right|up|down [--amount FLOAT] [--pane ID|--current]
 herdr pane zoom [<pane_id>|--pane ID|--current] [--toggle|--on|--off]
 herdr pane rename <pane_id> <label>|--clear
-herdr pane split [<pane_id>|--pane ID|--current] --direction right|down [--ratio FLOAT] [--cwd PATH] [--env KEY=VALUE] [--focus] [--no-focus]
+herdr pane split [<pane_id>|--pane ID|--current] --direction right|down [--ratio FLOAT] [--cwd PATH] [--env KEY=VALUE] [--shell] [--focus] [--no-focus]
 herdr pane swap --direction left|right|up|down [--pane ID|--current]
 herdr pane swap --source-pane ID --target-pane ID
 herdr pane move <pane_id> --tab <tab_id> --split right|down [--target-pane ID] [--ratio FLOAT] [--focus|--no-focus]
@@ -180,7 +180,7 @@ herdr pane close <pane_id>
 ```
 
 接受 `--current` 的窗格命令在 Herdr 窗格内运行时使用调用方的 `HERDR_PANE_ID`。对 `pane split` 而言,显式窗格 ID 或 `--pane ID` 拆分该窗格,`--current` 拆分调用方窗格,省略目标则使用 UI 当前聚焦的窗格。拆分响应中的新窗格 ID 位于 `.result.pane.pane_id`。
-如果目标窗格正在运行已识别的智能体,新窗格会启动同类智能体可执行文件的新实例,并使用目标窗格的当前工作目录。显式指定的 `--cwd` 仍然优先。拆分普通 shell 窗格或包含未知智能体的窗格时,仍按原有行为创建 shell 窗格。
+如果目标窗格正在运行已识别的智能体,新窗格会启动同类智能体可执行文件的新实例,并使用目标窗格的当前工作目录。显式指定的 `--cwd` 仍然优先。拆分普通 shell 窗格或包含未知智能体的窗格时,仍按原有行为创建 shell 窗格。即使目标包含智能体,也可以传入 `--shell` 强制创建普通 shell。
 
 执行 `pane move` 后,后续命令应使用 `.result.move_result.pane.pane_id`。跨工作区移动会改变带工作区前缀的窗格 ID;旧值保留在 `.result.move_result.previous_pane_id`。运行中进程的 `HERDR_PANE_ID`、`HERDR_TAB_ID` 和 `HERDR_WORKSPACE_ID` 保持启动时的值,但 Herdr 会把旧窗格 ID 保留为该终端的别名,所以使用 `--current` 的窗格命令仍能解析它。实时智能体名称也会跟随终端。
 

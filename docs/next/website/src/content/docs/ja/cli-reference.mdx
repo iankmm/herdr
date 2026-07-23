@@ -170,7 +170,7 @@ herdr pane focus --direction left|right|up|down [--pane ID|--current]
 herdr pane resize --direction left|right|up|down [--amount FLOAT] [--pane ID|--current]
 herdr pane zoom [<pane_id>|--pane ID|--current] [--toggle|--on|--off]
 herdr pane rename <pane_id> <label>|--clear
-herdr pane split [<pane_id>|--pane ID|--current] --direction right|down [--ratio FLOAT] [--cwd PATH] [--env KEY=VALUE] [--focus] [--no-focus]
+herdr pane split [<pane_id>|--pane ID|--current] --direction right|down [--ratio FLOAT] [--cwd PATH] [--env KEY=VALUE] [--shell] [--focus] [--no-focus]
 herdr pane swap --direction left|right|up|down [--pane ID|--current]
 herdr pane swap --source-pane ID --target-pane ID
 herdr pane move <pane_id> --tab <tab_id> --split right|down [--target-pane ID] [--ratio FLOAT] [--focus|--no-focus]
@@ -180,7 +180,7 @@ herdr pane close <pane_id>
 ```
 
 `--current` を受け付けるペインコマンドは、Herdr ペイン内から実行した場合、呼び出し元の `HERDR_PANE_ID` を使います。`pane split` では、明示したペイン ID または `--pane ID` がそのペインを、`--current` が呼び出し元ペインを分割します。対象を省略すると UI でフォーカス中のペインを使います。分割レスポンスでは、新しいペイン ID は `.result.pane.pane_id` にあります。
-対象ペインで認識済みのエージェントが動作している場合、分割先では同じ種類のエージェント実行ファイルを新しく起動し、対象ペインの現在の作業ディレクトリを使用します。明示した `--cwd` は引き続き優先されます。通常のシェルまたは未認識のエージェントを含むペインを分割した場合は、従来どおりシェルペインを作成します。
+対象ペインで認識済みのエージェントが動作している場合、分割先では同じ種類のエージェント実行ファイルを新しく起動し、対象ペインの現在の作業ディレクトリを使用します。明示した `--cwd` は引き続き優先されます。通常のシェルまたは未認識のエージェントを含むペインを分割した場合は、従来どおりシェルペインを作成します。対象にエージェントが含まれていても通常のシェルを強制するには `--shell` を指定します。
 
 `pane move` の後続コマンドには `.result.move_result.pane.pane_id` を使います。別ワークスペースへの移動ではワークスペース修飾付きのペイン ID が変わり、以前の値は `.result.move_result.previous_pane_id` に残ります。実行中プロセスの `HERDR_PANE_ID`、`HERDR_TAB_ID`、`HERDR_WORKSPACE_ID` は起動時の値のままですが、Herdr は以前のペイン ID をそのターミナルの別名として保持するため、`--current` を使うペインコマンドは引き続き解決できます。ライブエージェント名もターミナルに追従します。
 

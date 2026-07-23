@@ -140,6 +140,7 @@ pub(super) fn render_navigate_overlay(app: &AppState, frame: &mut Frame, area: R
 
     let kb = &app.keybinds;
     let new_tab = prefix_rhs_label(&kb.new_tab);
+    let new_terminal = prefix_rhs_label(&kb.new_terminal);
     let split_vertical = prefix_rhs_label(&kb.split_vertical);
     let split_horizontal = prefix_rhs_label(&kb.split_horizontal);
     let close_pane = prefix_rhs_label(&kb.close_pane);
@@ -167,6 +168,8 @@ pub(super) fn render_navigate_overlay(app: &AppState, frame: &mut Frame, area: R
         Span::styled(" navigator  ", dim),
         Span::styled(new_tab, key),
         Span::styled(" new tab  ", dim),
+        Span::styled(new_terminal, key),
+        Span::styled(" terminal↓  ", dim),
         Span::styled(split_vertical, key),
         Span::styled(" split│  ", dim),
         Span::styled(split_horizontal, key),

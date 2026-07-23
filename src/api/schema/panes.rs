@@ -19,6 +19,8 @@ pub struct PaneSplitParams {
     pub ratio: Option<f32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cwd: Option<String>,
+    #[serde(default, skip_serializing_if = "super::is_false")]
+    pub shell: bool,
     #[serde(default)]
     pub focus: bool,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]

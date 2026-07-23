@@ -3016,6 +3016,9 @@
                 "null"
               ]
             },
+            "shell": {
+              "type": "boolean"
+            },
             "target_pane_id": {
               "type": [
                 "string",

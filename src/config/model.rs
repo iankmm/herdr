@@ -407,6 +407,8 @@ pub struct KeysConfig {
     pub split_vertical: BindingConfig,
     /// Split pane horizontally (stacked). Default: "prefix+minus"
     pub split_horizontal: BindingConfig,
+    /// Open a plain terminal below the focused pane. Default: "prefix+t"
+    pub new_terminal: BindingConfig,
     /// Close the focused pane. Default: "prefix+x"
     pub close_pane: BindingConfig,
     /// Toggle zoom for the focused pane. Default: "prefix+z"
@@ -527,6 +529,8 @@ pub(crate) struct KeysConfigOverlay {
     #[serde(skip_serializing_if = "Option::is_none")]
     split_horizontal: Option<BindingConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    new_terminal: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     close_pane: Option<BindingConfig>,
     #[serde(alias = "fullscreen", skip_serializing_if = "Option::is_none")]
     zoom: Option<BindingConfig>,
@@ -606,6 +610,7 @@ impl<'de> Deserialize<'de> for KeysConfig {
         apply_field!(last_pane);
         apply_field!(split_vertical);
         apply_field!(split_horizontal);
+        apply_field!(new_terminal);
         apply_field!(close_pane);
         apply_field!(zoom);
         apply_field!(resize_mode);
@@ -704,6 +709,7 @@ impl KeysConfig {
         copy_effective_action_field!(last_pane, keybinds.last_pane);
         copy_effective_action_field!(split_vertical, keybinds.split_vertical);
         copy_effective_action_field!(split_horizontal, keybinds.split_horizontal);
+        copy_effective_action_field!(new_terminal, keybinds.new_terminal);
         copy_effective_action_field!(close_pane, keybinds.close_pane);
         copy_effective_action_field!(zoom, keybinds.zoom);
         copy_effective_action_field!(resize_mode, keybinds.resize_mode);
@@ -969,6 +975,7 @@ impl Default for KeysConfig {
             last_pane: BindingConfig::empty(),
             split_vertical: BindingConfig::one("prefix+v"),
             split_horizontal: BindingConfig::one("prefix+minus"),
+            new_terminal: BindingConfig::one("prefix+t"),
             close_pane: BindingConfig::one("prefix+x"),
             zoom: BindingConfig::one("prefix+z"),
             resize_mode: BindingConfig::one("prefix+r"),

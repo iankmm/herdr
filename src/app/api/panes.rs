@@ -50,8 +50,9 @@ impl App {
             Err((code, message)) => return encode_error(id, &code, message),
         };
         let (rows, cols) = self.state.estimate_pane_size();
-        let inherited_agent_argv =
-            self.inherited_agent_argv_for_pane_in_workspace(ws_idx, target_pane_id);
+        let inherited_agent_argv = (!params.shell)
+            .then(|| self.inherited_agent_argv_for_pane_in_workspace(ws_idx, target_pane_id))
+            .flatten();
         let split_cwd = Some(self.resolve_pane_split_cwd(
             ws_idx,
             target_pane_id,

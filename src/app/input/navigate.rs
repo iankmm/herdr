@@ -301,6 +301,10 @@ impl App {
                     }
                 }
             }
+            NavigateAction::NewTerminal => {
+                self.split_focused_pane_via_api(crate::api::schema::SplitDirection::Down, true);
+                leave_navigate_mode(&mut self.state);
+            }
             NavigateAction::RenameTab => {
                 super::modal::open_rename_active_tab(&mut self.state, false)
             }
@@ -354,11 +358,11 @@ impl App {
                 leave_navigate_mode(&mut self.state);
             }
             NavigateAction::SplitVertical => {
-                self.split_focused_pane_via_api(crate::api::schema::SplitDirection::Right);
+                self.split_focused_pane_via_api(crate::api::schema::SplitDirection::Right, false);
                 leave_navigate_mode(&mut self.state);
             }
             NavigateAction::SplitHorizontal => {
-                self.split_focused_pane_via_api(crate::api::schema::SplitDirection::Down);
+                self.split_focused_pane_via_api(crate::api::schema::SplitDirection::Down, false);
                 leave_navigate_mode(&mut self.state);
             }
             NavigateAction::ClosePane => {
@@ -542,6 +546,7 @@ impl App {
     pub(crate) fn split_focused_pane_via_api(
         &mut self,
         direction: crate::api::schema::SplitDirection,
+        shell: bool,
     ) {
         self.runtime_pane_split(
             "tui.pane.split",
@@ -551,6 +556,7 @@ impl App {
                 direction,
                 ratio: None,
                 cwd: None,
+                shell,
                 focus: true,
                 env: Default::default(),
             },
@@ -1299,6 +1305,7 @@ pub(crate) enum NavigateAction {
     PreviousAgent,
     NextAgent,
     NewTab,
+    NewTerminal,
     RenameTab,
     PreviousTab,
     NextTab,
@@ -1432,6 +1439,7 @@ fn non_indexed_action_for_key(
         (&kb.previous_agent, NavigateAction::PreviousAgent),
         (&kb.next_agent, NavigateAction::NextAgent),
         (&kb.new_tab, NavigateAction::NewTab),
+        (&kb.new_terminal, NavigateAction::NewTerminal),
         (&kb.rename_tab, NavigateAction::RenameTab),
         (&kb.previous_tab, NavigateAction::PreviousTab),
         (&kb.next_tab, NavigateAction::NextTab),
@@ -1622,6 +1630,10 @@ pub(super) fn execute_navigate_action_in_context(
                     leave_navigate_mode(state);
                 }
             }
+        }
+        NavigateAction::NewTerminal => {
+            state.split_pane(terminal_runtimes, Direction::Vertical);
+            leave_navigate_mode(state);
         }
         NavigateAction::RenameTab => super::modal::open_rename_active_tab(state, false),
         NavigateAction::PreviousTab => {
@@ -2543,6 +2555,19 @@ last_pane = "prefix+tab"
     }
 
     #[test]
+    fn default_prefix_t_maps_to_new_terminal() {
+        let state = state_with_workspaces(&["test"]);
+
+        let action = action_for_key(
+            &state,
+            TerminalKey::new(KeyCode::Char('t'), KeyModifiers::empty()),
+            BindingDispatch::Prefix,
+        );
+
+        assert_eq!(action, Some(NavigateAction::NewTerminal));
+    }
+
+    #[test]
     fn terminal_direct_indexed_tab_shortcut_maps_to_navigation_action() {
         let mut state = state_with_workspaces(&["test"]);
         let config: Config = toml::from_str("[keys]\nswitch_tab = \"ctrl+3\"\n").unwrap();
@@ -3338,6 +3363,27 @@ navigate_pane_down = "ctrl+j"
         assert!(!state.creating_new_tab);
         assert!(state.request_new_tab);
         assert!(state.requested_new_tab_name.is_none());
+    }
+
+    #[tokio::test]
+    async fn new_terminal_action_splits_below_focused_pane() {
+        let mut app = app_with_test_workspaces(&["test"]);
+        app.state.mode = Mode::Navigate;
+
+        app.execute_tui_navigate_action(NavigateAction::NewTerminal, ActionContext::Navigate);
+
+        let tab = &app.state.workspaces[0].tabs[0];
+        assert_eq!(tab.layout.pane_count(), 2);
+        let splits = tab.layout.splits(ratatui::layout::Rect::new(0, 0, 100, 40));
+        assert_eq!(splits.len(), 1);
+        assert_eq!(splits[0].direction, Direction::Vertical);
+        let terminal_id = tab
+            .terminal_id(tab.layout.focused())
+            .expect("new terminal should be attached");
+        assert_eq!(app.state.terminals[terminal_id].launch_argv, None);
+        assert_eq!(app.state.mode, Mode::Terminal);
+
+        crate::app::api::test_support::shutdown_test_runtimes(&mut app);
     }
 
     #[test]

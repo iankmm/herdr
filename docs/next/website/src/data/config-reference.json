@@ -500,6 +500,12 @@
           "description": "Split pane horizontally (stacked)."
         },
         {
+          "key": "keys.new_terminal",
+          "type": "keybinding",
+          "default": "\"prefix+t\"",
+          "description": "Open a plain terminal below the focused pane."
+        },
+        {
           "key": "keys.close_pane",
           "type": "keybinding",
           "default": "\"prefix+x\"",

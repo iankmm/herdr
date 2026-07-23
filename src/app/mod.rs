@@ -4273,6 +4273,7 @@ mod tests {
                 direction: crate::api::schema::SplitDirection::Right,
                 ratio: None,
                 cwd: None,
+                shell: false,
                 focus: false,
                 env: Default::default(),
             }),
@@ -4353,6 +4354,7 @@ mod tests {
                 direction: crate::api::schema::SplitDirection::Right,
                 ratio: None,
                 cwd: None,
+                shell: false,
                 focus: true,
                 env: Default::default(),
             }),
@@ -4399,6 +4401,7 @@ mod tests {
                 direction: crate::api::schema::SplitDirection::Right,
                 ratio: Some(0.333),
                 cwd: None,
+                shell: false,
                 focus: false,
                 env: Default::default(),
             }),
@@ -4445,6 +4448,7 @@ mod tests {
                 direction: crate::api::schema::SplitDirection::Right,
                 ratio: None,
                 cwd: None,
+                shell: false,
                 focus: false,
                 env: Default::default(),
             }),
@@ -4457,6 +4461,76 @@ mod tests {
             app.state.workspaces[0].tabs[0].layout.focused(),
             target_pane
         );
+
+        let runtimes: Vec<_> = app.terminal_runtimes.drain().collect();
+        for (_terminal_id, runtime) in runtimes {
+            runtime.shutdown();
+        }
+        match original_shell {
+            Some(value) => std::env::set_var("SHELL", value),
+            None => std::env::remove_var("SHELL"),
+        }
+    }
+
+    #[tokio::test]
+    async fn pane_split_shell_override_does_not_inherit_target_agent() {
+        let _guard = config_env_lock().lock().unwrap();
+        let original_shell = std::env::var_os("SHELL");
+        std::env::set_var("SHELL", exiting_test_command());
+
+        let mut app = test_app();
+        let workspace = Workspace::test_new("api-pane-split-shell");
+        let target_pane = workspace.tabs[0].root_pane;
+        app.state.workspaces = vec![workspace];
+        app.state.ensure_test_terminals();
+        app.state.active = Some(0);
+        app.state.selected = 0;
+
+        let target_terminal_id = app.state.workspaces[0]
+            .terminal_id(target_pane)
+            .cloned()
+            .unwrap();
+        app.state
+            .terminals
+            .get_mut(&target_terminal_id)
+            .unwrap()
+            .set_detected_state(
+                Some(crate::detect::Agent::Codex),
+                crate::detect::AgentState::Working,
+            );
+        let target_pane_id = app.pane_info(0, target_pane).unwrap().pane_id;
+
+        let response = app.handle_api_request(crate::api::schema::Request {
+            id: "req_pane_split_shell".into(),
+            method: crate::api::schema::Method::PaneSplit(crate::api::schema::PaneSplitParams {
+                workspace_id: None,
+                target_pane_id: Some(target_pane_id),
+                direction: crate::api::schema::SplitDirection::Down,
+                ratio: None,
+                cwd: None,
+                shell: true,
+                focus: true,
+                env: Default::default(),
+            }),
+        });
+        let response: serde_json::Value = serde_json::from_str(&response).unwrap();
+
+        assert_eq!(response["result"]["type"], "pane_info");
+        let new_pane_id = response["result"]["pane"]["pane_id"].as_str().unwrap();
+        let (_, new_pane_id) = app.parse_pane_id(new_pane_id).unwrap();
+        let new_terminal_id = app.state.workspaces[0]
+            .terminal_id(new_pane_id)
+            .cloned()
+            .unwrap();
+        assert_eq!(
+            app.state.terminals[&new_terminal_id].launch_argv, None,
+            "shell override must not launch the inherited agent executable"
+        );
+        let splits = app.state.workspaces[0].tabs[0]
+            .layout
+            .splits(ratatui::layout::Rect::new(0, 0, 100, 40));
+        assert_eq!(splits.len(), 1);
+        assert_eq!(splits[0].direction, ratatui::layout::Direction::Vertical);
 
         let runtimes: Vec<_> = app.terminal_runtimes.drain().collect();
         for (_terminal_id, runtime) in runtimes {
