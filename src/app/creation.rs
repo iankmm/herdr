@@ -72,6 +72,38 @@ impl App {
         )
     }
 
+    pub(super) fn inherited_agent_argv_for_pane_in_workspace(
+        &self,
+        ws_idx: usize,
+        pane_id: crate::layout::PaneId,
+    ) -> Option<Vec<String>> {
+        let terminal_id = self.state.workspaces.get(ws_idx)?.terminal_id(pane_id)?;
+        let terminal = self.state.terminals.get(terminal_id)?;
+        let agent = terminal
+            .effective_known_agent()
+            .or_else(|| terminal.managed_agent_kind())?;
+        Some(vec![
+            crate::detect::interactive_agent_executable(agent).to_string()
+        ])
+    }
+
+    pub(super) fn resolve_pane_split_cwd(
+        &self,
+        ws_idx: usize,
+        pane_id: crate::layout::PaneId,
+        requested_cwd: Option<PathBuf>,
+        inherit_agent: bool,
+    ) -> PathBuf {
+        if let Some(cwd) = requested_cwd {
+            return cwd;
+        }
+        let follow_cwd = self.launch_cwd_for_pane_in_workspace(ws_idx, pane_id);
+        if inherit_agent {
+            return follow_cwd.unwrap_or_else(|| self.resolve_new_terminal_cwd(None));
+        }
+        self.resolve_new_terminal_cwd(follow_cwd)
+    }
+
     pub(super) fn focused_pane_cwd_in_workspace(&self, ws_idx: usize) -> Option<PathBuf> {
         let pane_id = self.state.workspaces.get(ws_idx)?.focused_pane_id()?;
         self.launch_cwd_for_pane_in_workspace(ws_idx, pane_id)
