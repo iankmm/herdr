@@ -407,7 +407,7 @@ pub struct KeysConfig {
     pub split_vertical: BindingConfig,
     /// Split pane horizontally (stacked). Default: "prefix+minus"
     pub split_horizontal: BindingConfig,
-    /// Open a plain terminal below the focused pane. Default: "prefix+t"
+    /// Open a plain terminal in a 30%-height split below the focused pane. Default: "prefix+t"
     pub new_terminal: BindingConfig,
     /// Close the focused pane. Default: "prefix+x"
     pub close_pane: BindingConfig,

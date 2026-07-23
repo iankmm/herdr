@@ -21,6 +21,8 @@ use crate::{
     terminal::TerminalRuntimeRegistry,
 };
 
+const NEW_TERMINAL_TOP_RATIO: f32 = 0.7;
+
 #[cfg(test)]
 pub(crate) fn terminal_direct_navigation_action(
     state: &AppState,
@@ -302,7 +304,11 @@ impl App {
                 }
             }
             NavigateAction::NewTerminal => {
-                self.split_focused_pane_via_api(crate::api::schema::SplitDirection::Down, true);
+                self.split_focused_pane_via_api(
+                    crate::api::schema::SplitDirection::Down,
+                    Some(NEW_TERMINAL_TOP_RATIO),
+                    true,
+                );
                 leave_navigate_mode(&mut self.state);
             }
             NavigateAction::RenameTab => {
@@ -358,11 +364,19 @@ impl App {
                 leave_navigate_mode(&mut self.state);
             }
             NavigateAction::SplitVertical => {
-                self.split_focused_pane_via_api(crate::api::schema::SplitDirection::Right, false);
+                self.split_focused_pane_via_api(
+                    crate::api::schema::SplitDirection::Right,
+                    None,
+                    false,
+                );
                 leave_navigate_mode(&mut self.state);
             }
             NavigateAction::SplitHorizontal => {
-                self.split_focused_pane_via_api(crate::api::schema::SplitDirection::Down, false);
+                self.split_focused_pane_via_api(
+                    crate::api::schema::SplitDirection::Down,
+                    None,
+                    false,
+                );
                 leave_navigate_mode(&mut self.state);
             }
             NavigateAction::ClosePane => {
@@ -546,6 +560,7 @@ impl App {
     pub(crate) fn split_focused_pane_via_api(
         &mut self,
         direction: crate::api::schema::SplitDirection,
+        ratio: Option<f32>,
         shell: bool,
     ) {
         self.runtime_pane_split(
@@ -554,7 +569,7 @@ impl App {
                 workspace_id: None,
                 target_pane_id: None,
                 direction,
-                ratio: None,
+                ratio,
                 cwd: None,
                 shell,
                 focus: true,
@@ -3377,6 +3392,7 @@ navigate_pane_down = "ctrl+j"
         let splits = tab.layout.splits(ratatui::layout::Rect::new(0, 0, 100, 40));
         assert_eq!(splits.len(), 1);
         assert_eq!(splits[0].direction, Direction::Vertical);
+        assert!((splits[0].ratio - NEW_TERMINAL_TOP_RATIO).abs() < f32::EPSILON);
         let terminal_id = tab
             .terminal_id(tab.layout.focused())
             .expect("new terminal should be attached");

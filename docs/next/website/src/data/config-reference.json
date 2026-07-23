@@ -503,7 +503,7 @@
           "key": "keys.new_terminal",
           "type": "keybinding",
           "default": "\"prefix+t\"",
-          "description": "Open a plain terminal below the focused pane."
+          "description": "Open a plain terminal in a 30%-height split below the focused pane."
         },
         {
           "key": "keys.close_pane",

@@ -1250,7 +1250,11 @@ impl App {
                 Some("Split right"),
             ) => {
                 self.focus_pane_internal_via_api(ws_idx, pane_id);
-                self.split_focused_pane_via_api(crate::api::schema::SplitDirection::Right, false);
+                self.split_focused_pane_via_api(
+                    crate::api::schema::SplitDirection::Right,
+                    None,
+                    false,
+                );
                 self.state.mode = Mode::Terminal;
             }
             (
@@ -1260,7 +1264,11 @@ impl App {
                 Some("Split down"),
             ) => {
                 self.focus_pane_internal_via_api(ws_idx, pane_id);
-                self.split_focused_pane_via_api(crate::api::schema::SplitDirection::Down, false);
+                self.split_focused_pane_via_api(
+                    crate::api::schema::SplitDirection::Down,
+                    None,
+                    false,
+                );
                 self.state.mode = Mode::Terminal;
             }
             (
