@@ -30,10 +30,18 @@ fn modified_url_click_modifier() -> KeyModifiers {
     KeyModifiers::CONTROL
 }
 
+fn modified_file_click_modifiers() -> KeyModifiers {
+    KeyModifiers::CONTROL | KeyModifiers::SUPER
+}
+
 #[cfg(test)]
 #[test]
 fn modified_url_click_modifier_matches_terminal_mouse_reporting() {
     assert_eq!(modified_url_click_modifier(), KeyModifiers::CONTROL);
+    assert_eq!(
+        modified_file_click_modifiers(),
+        KeyModifiers::CONTROL | KeyModifiers::SUPER
+    );
 }
 
 mod copy_mode;
@@ -472,7 +480,7 @@ impl App {
     fn handle_modified_url_click(&mut self, mouse: MouseEvent) -> bool {
         if self.state.mode != Mode::Terminal
             || !matches!(mouse.kind, MouseEventKind::Down(MouseButton::Left))
-            || !mouse.modifiers.contains(modified_url_click_modifier())
+            || !mouse.modifiers.intersects(modified_file_click_modifiers())
         {
             return false;
         }
@@ -482,23 +490,41 @@ impl App {
         };
         let viewport_row = mouse.row.saturating_sub(info.inner_rect.y);
         let col = mouse.column.saturating_sub(info.inner_rect.x);
-        let Some(url) =
-            self.state
-                .url_at_pane_cell(&self.terminal_runtimes, info.id, viewport_row, col)
-        else {
+        if mouse.modifiers.contains(modified_url_click_modifier()) {
+            if let Some(url) =
+                self.state
+                    .url_at_pane_cell(&self.terminal_runtimes, info.id, viewport_row, col)
+            {
+                self.last_pane_click = None;
+                match self.invoke_plugin_link_handler_for_url(&url, info.id) {
+                    Ok(true) => return true,
+                    Ok(false) => {}
+                    Err(err) => {
+                        tracing::warn!(err = %err, url = %url, "failed to invoke plugin link handler");
+                    }
+                }
+                if let Err(err) = crate::platform::open_url(&url) {
+                    tracing::warn!(err = %err, url = %url, "failed to open pane URL");
+                }
+                return true;
+            }
+        }
+
+        let Some(reference) = self.state.file_reference_at_pane_cell(
+            &self.terminal_runtimes,
+            info.id,
+            viewport_row,
+            col,
+        ) else {
+            return false;
+        };
+        let Some(ws_idx) = self.state.active else {
             return false;
         };
 
         self.last_pane_click = None;
-        match self.invoke_plugin_link_handler_for_url(&url, info.id) {
-            Ok(true) => return true,
-            Ok(false) => {}
-            Err(err) => {
-                tracing::warn!(err = %err, url = %url, "failed to invoke plugin link handler");
-            }
-        }
-        if let Err(err) = crate::platform::open_url(&url) {
-            tracing::warn!(err = %err, url = %url, "failed to open pane URL");
+        if let Err(err) = self.open_file_reference_in_viewer(ws_idx, info.id, reference) {
+            tracing::warn!(err = %err, pane = info.id.raw(), "failed to open read-only file viewer");
         }
         true
     }

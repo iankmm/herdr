@@ -1575,10 +1575,7 @@ impl AppState {
         }
     }
 
-    pub(crate) fn remove_plugin_pane_records(
-        &mut self,
-        pane_ids: impl IntoIterator<Item = PaneId>,
-    ) {
+    pub(crate) fn remove_pane_local_records(&mut self, pane_ids: impl IntoIterator<Item = PaneId>) {
         let pane_ids = pane_ids.into_iter().collect::<Vec<_>>();
         self.clear_copy_mode_for_removed_panes(pane_ids.iter().copied());
         if self
@@ -1589,9 +1586,36 @@ impl AppState {
             self.previous_pane_focus = None;
         }
         for pane_id in pane_ids {
+            self.remove_file_viewer_association(pane_id);
             self.plugin_panes.remove(&pane_id);
             self.pane_graphics_layers.remove(&pane_id);
             self.pane_graphics_streams.remove(&pane_id);
+        }
+    }
+
+    pub(crate) fn file_viewer_for_source(&self, source_pane_id: PaneId) -> Option<PaneId> {
+        self.file_viewers_by_source.get(&source_pane_id).copied()
+    }
+
+    pub(crate) fn set_file_viewer_for_source(
+        &mut self,
+        source_pane_id: PaneId,
+        viewer_pane_id: PaneId,
+    ) {
+        self.remove_file_viewer_association(source_pane_id);
+        self.remove_file_viewer_association(viewer_pane_id);
+        self.file_viewers_by_source
+            .insert(source_pane_id, viewer_pane_id);
+        self.file_viewer_sources
+            .insert(viewer_pane_id, source_pane_id);
+    }
+
+    fn remove_file_viewer_association(&mut self, pane_id: PaneId) {
+        if let Some(viewer_pane_id) = self.file_viewers_by_source.remove(&pane_id) {
+            self.file_viewer_sources.remove(&viewer_pane_id);
+        }
+        if let Some(source_pane_id) = self.file_viewer_sources.remove(&pane_id) {
+            self.file_viewers_by_source.remove(&source_pane_id);
         }
     }
 
@@ -1630,7 +1654,7 @@ impl AppState {
                 crate::logging::workspace_closed(&workspace_id);
             }
         }
-        self.remove_plugin_pane_records(pane_ids);
+        self.remove_pane_local_records(pane_ids);
         for idx in close_indices.iter().rev() {
             self.workspaces.remove(*idx);
         }
@@ -1979,7 +2003,7 @@ impl AppState {
         let should_close_workspace = active
             .and_then(|i| self.workspaces.get_mut(i))
             .is_some_and(|ws| ws.close_focused());
-        self.remove_plugin_pane_records(pane_ids);
+        self.remove_pane_local_records(pane_ids);
         if should_close_workspace {
             if let Some(active) = active {
                 self.selected = active;
@@ -2039,7 +2063,7 @@ impl AppState {
             let closing_tab_id =
                 public_tab_id_for_index(ws, ws.active_tab).unwrap_or_else(|| workspace_id.clone());
             ws.close_active_tab();
-            self.remove_plugin_pane_records(pane_ids);
+            self.remove_pane_local_records(pane_ids);
             self.remove_unattached_terminal_ids(terminal_ids);
             crate::logging::tab_closed(&workspace_id, &closing_tab_id);
             self.tab_scroll_follow_active = true;
@@ -2177,6 +2201,44 @@ impl AppState {
             .map_or(visible_text.len(), |idx| logical_cell.byte_index + idx);
         let line = visible_text.get(line_start..line_end)?;
         url_at_column(line, logical_cell.logical_col).map(str::to_owned)
+    }
+
+    pub(crate) fn file_reference_at_pane_cell(
+        &self,
+        terminal_runtimes: &crate::terminal::TerminalRuntimeRegistry,
+        pane_id: crate::layout::PaneId,
+        viewport_row: u16,
+        col: u16,
+    ) -> Option<crate::file_reference::FileReference> {
+        let ws_idx = self
+            .active
+            .filter(|idx| self.workspaces.get(*idx).is_some())?;
+        let info = self.pane_info_by_id(pane_id)?;
+        if viewport_row >= info.inner_rect.height || col >= info.inner_rect.width {
+            return None;
+        }
+
+        let rt = self.runtime_for_pane_in_workspace(terminal_runtimes, ws_idx, pane_id)?;
+        let metrics = self.pane_scroll_metrics(terminal_runtimes, pane_id);
+        let visible_selection = Selection::line_range(
+            pane_id,
+            Selection::absolute_row_for_viewport(0, metrics),
+            Selection::absolute_row_for_viewport(info.inner_rect.height.saturating_sub(1), metrics),
+            info.inner_rect.width.saturating_sub(1),
+        );
+        let visible_text = rt.extract_selection(&visible_selection)?;
+        let logical_cell =
+            logical_cell_for_visible_cell(&visible_text, info.inner_rect.width, viewport_row, col)?;
+        let line_start = visible_text[..logical_cell.byte_index]
+            .rfind('\n')
+            .map_or(0, |idx| idx + 1);
+        let line_end = visible_text[logical_cell.byte_index..]
+            .find('\n')
+            .map_or(visible_text.len(), |idx| logical_cell.byte_index + idx);
+        let line = visible_text.get(line_start..line_end)?;
+        let (start_col, end_col) = word_bounds_at_column(line, logical_cell.logical_col)?;
+        let candidate = text_in_column_range(line, start_col, end_col);
+        crate::file_reference::parse_file_reference(&candidate)
     }
 
     pub fn copy_selection(&mut self, terminal_runtimes: &crate::terminal::TerminalRuntimeRegistry) {
@@ -2400,6 +2462,14 @@ fn text_cells(row: &str) -> Vec<TextCell> {
                 end_col: next_col.saturating_sub(1),
             }
         })
+        .collect()
+}
+
+fn text_in_column_range(row: &str, start_col: u16, end_col: u16) -> String {
+    text_cells(row)
+        .into_iter()
+        .filter(|cell| cell.start_col >= start_col && cell.end_col <= end_col)
+        .map(|cell| cell.ch)
         .collect()
 }
 
@@ -3184,7 +3254,7 @@ impl AppState {
 
     fn handle_pane_died(&mut self, pane_id: PaneId) {
         self.pending_agent_notifications.remove(&pane_id);
-        self.remove_plugin_pane_records([pane_id]);
+        self.remove_pane_local_records([pane_id]);
         let ws_idx = self
             .workspaces
             .iter()
@@ -5695,5 +5765,27 @@ mod tests {
         assert!(!deferred);
         assert_eq!(state.workspaces.len(), 1);
         assert_eq!(state.workspaces[0].display_name(), "notes");
+    }
+
+    #[test]
+    fn file_viewer_association_replaces_and_cleans_up_bidirectionally() {
+        let mut state = app_with_workspaces(&["source"]);
+        let source = state.workspaces[0].tabs[0].root_pane;
+        let first_viewer = state.workspaces[0].test_split(Direction::Horizontal);
+        let replacement = state.workspaces[0].test_split(Direction::Horizontal);
+        state.ensure_test_terminals();
+
+        state.set_file_viewer_for_source(source, first_viewer);
+        assert_eq!(state.file_viewer_for_source(source), Some(first_viewer));
+        state.assert_invariants_for_test();
+
+        state.set_file_viewer_for_source(source, replacement);
+        assert_eq!(state.file_viewer_for_source(source), Some(replacement));
+        assert!(!state.file_viewer_sources.contains_key(&first_viewer));
+        state.assert_invariants_for_test();
+
+        state.remove_pane_local_records([replacement]);
+        assert_eq!(state.file_viewer_for_source(source), None);
+        assert!(state.file_viewer_sources.is_empty());
     }
 }

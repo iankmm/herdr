@@ -12,6 +12,7 @@ mod api;
 mod api_helpers;
 mod config_io;
 mod creation;
+mod file_viewer;
 mod ids;
 mod input;
 mod popup;
@@ -677,6 +678,8 @@ impl App {
             integration_install_messages: Vec::new(),
             installed_plugins: load_plugin_registry(no_session),
             plugin_panes: std::collections::HashMap::new(),
+            file_viewers_by_source: std::collections::HashMap::new(),
+            file_viewer_sources: std::collections::HashMap::new(),
             pane_graphics_layers: std::collections::HashMap::new(),
             pane_graphics_streams: std::collections::HashMap::new(),
             pane_graphics_revision: 0,

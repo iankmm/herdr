@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 mod agent_view;
 mod agents;
 mod env;
+mod file_viewer;
 mod integrations;
 mod layouts;
 mod pane_graphics;
@@ -1020,6 +1021,7 @@ impl App {
                 return self.handle_agent_send_keys(request.id, params)
             }
             Method::PaneSplit(params) => return self.handle_pane_split(request.id, params),
+            Method::PaneViewFile(params) => return self.handle_pane_view_file(request.id, params),
             Method::PaneSwap(params) => return self.handle_pane_swap(request.id, params),
             Method::PaneMove(params) => return self.handle_pane_move(request.id, params),
             Method::PaneZoom(params) => return self.handle_pane_zoom(request.id, params),

@@ -1563,6 +1563,10 @@ pub struct AppState {
     pub(crate) installed_plugins: InstalledPluginRegistry,
     /// Pane ids opened through the plugin pane API.
     pub(crate) plugin_panes: std::collections::HashMap<PaneId, PluginPaneRecord>,
+    /// Read-only file viewer pane owned by each source pane.
+    pub(crate) file_viewers_by_source: std::collections::HashMap<PaneId, PaneId>,
+    /// Reverse index for removing viewer associations when either pane closes.
+    pub(crate) file_viewer_sources: std::collections::HashMap<PaneId, PaneId>,
     /// Runtime image layers owned by API clients and composited over panes.
     pub(crate) pane_graphics_layers: std::collections::HashMap<PaneId, PaneGraphicsLayer>,
     /// Active streaming graphics owner token by pane id.
@@ -1932,6 +1936,8 @@ impl AppState {
             integration_install_messages: Vec::new(),
             installed_plugins: std::collections::HashMap::new(),
             plugin_panes: std::collections::HashMap::new(),
+            file_viewers_by_source: std::collections::HashMap::new(),
+            file_viewer_sources: std::collections::HashMap::new(),
             pane_graphics_layers: std::collections::HashMap::new(),
             pane_graphics_streams: std::collections::HashMap::new(),
             pane_graphics_revision: 0,
@@ -2001,6 +2007,10 @@ impl AppState {
             assert!(
                 self.plugin_panes.is_empty(),
                 "empty app state must not keep plugin pane records"
+            );
+            assert!(
+                self.file_viewers_by_source.is_empty() && self.file_viewer_sources.is_empty(),
+                "empty app state must not keep file viewer associations"
             );
             assert!(
                 self.pending_agent_notifications.is_empty(),
@@ -2101,6 +2111,22 @@ impl AppState {
                     );
                 }
             }
+        }
+
+        assert_eq!(
+            self.file_viewers_by_source.len(),
+            self.file_viewer_sources.len(),
+            "file viewer indexes must have the same size"
+        );
+        for (&source, &viewer) in &self.file_viewers_by_source {
+            assert_ne!(source, viewer, "a file viewer cannot own itself");
+            assert!(pane_ids.contains(&source), "file viewer source must exist");
+            assert!(pane_ids.contains(&viewer), "file viewer pane must exist");
+            assert_eq!(
+                self.file_viewer_sources.get(&viewer),
+                Some(&source),
+                "file viewer indexes must be bidirectional"
+            );
         }
 
         let assert_live_pane = |pane_id: PaneId, context: &str| {

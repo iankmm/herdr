@@ -62,6 +62,24 @@ fn request_uses_dot_method_names() {
 }
 
 #[test]
+fn pane_view_file_request_round_trips() {
+    let request = Request {
+        id: "view-file".into(),
+        method: Method::PaneViewFile(PaneViewFileParams {
+            target_pane_id: "w1:p2".into(),
+            path: "/repo/src/main.rs".into(),
+            line: Some(44),
+            column: Some(5),
+        }),
+    };
+
+    let json = serde_json::to_value(&request).unwrap();
+    assert_eq!(json["method"], "pane.view_file");
+    assert_eq!(json["params"]["path"], "/repo/src/main.rs");
+    assert_eq!(serde_json::from_value::<Request>(json).unwrap(), request);
+}
+
+#[test]
 fn agent_start_and_prompt_requests_round_trip() {
     let start = Request {
         id: "start".into(),

@@ -32,6 +32,7 @@ enum SplitCommand<'a> {
     Argv {
         argv: &'a [String],
         launch_env: &'a PaneLaunchEnv,
+        agent_detection: crate::pane::AgentDetection,
     },
 }
 
@@ -294,7 +295,11 @@ impl Tab {
             host_terminal_theme,
             crate::pane::PaneShellConfig::new("", crate::config::ShellModeConfig::NonLogin),
             launch_env,
-            Some(SplitCommand::Argv { argv, launch_env }),
+            Some(SplitCommand::Argv {
+                argv,
+                launch_env,
+                agent_detection: crate::pane::AgentDetection::Enabled,
+            }),
         )
     }
 
@@ -320,7 +325,42 @@ impl Tab {
             host_terminal_theme,
             crate::pane::PaneShellConfig::new("", crate::config::ShellModeConfig::NonLogin),
             launch_env,
-            Some(SplitCommand::Argv { argv, launch_env }),
+            Some(SplitCommand::Argv {
+                argv,
+                launch_env,
+                agent_detection: crate::pane::AgentDetection::Enabled,
+            }),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn split_focused_viewer_argv_command_with_ratio(
+        &mut self,
+        direction: Direction,
+        ratio: f32,
+        rows: u16,
+        cols: u16,
+        cwd: Option<PathBuf>,
+        argv: &[String],
+        launch_env: &PaneLaunchEnv,
+        scrollback_limit_bytes: usize,
+        host_terminal_theme: crate::terminal_theme::TerminalTheme,
+    ) -> std::io::Result<NewPane> {
+        self.split_focused_with_runtime(
+            direction,
+            Some(ratio),
+            rows,
+            cols,
+            cwd,
+            scrollback_limit_bytes,
+            host_terminal_theme,
+            crate::pane::PaneShellConfig::new("", crate::config::ShellModeConfig::NonLogin),
+            launch_env,
+            Some(SplitCommand::Argv {
+                argv,
+                launch_env,
+                agent_detection: crate::pane::AgentDetection::Disabled,
+            }),
         )
     }
 
@@ -367,14 +407,18 @@ impl Tab {
                 self.render_notify.clone(),
                 self.render_dirty.clone(),
             ),
-            Some(SplitCommand::Argv { argv, launch_env }) => TerminalRuntime::spawn_argv_command(
+            Some(SplitCommand::Argv {
+                argv,
+                launch_env,
+                agent_detection,
+            }) => TerminalRuntime::spawn_argv_command(
                 new_id,
                 rows,
                 cols,
                 actual_cwd.clone(),
                 argv,
                 launch_env,
-                crate::pane::AgentDetection::Enabled,
+                agent_detection,
                 scrollback_limit_bytes,
                 host_terminal_theme,
                 self.events.clone(),

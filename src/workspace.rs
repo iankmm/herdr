@@ -20,6 +20,7 @@ mod tab;
 
 #[cfg(test)]
 use self::git::git_ahead_behind;
+pub(crate) use self::git::git_repo_root;
 pub(crate) use self::tab::MovedPane;
 pub use self::{
     git::{
@@ -793,6 +794,47 @@ impl Workspace {
             focus_new_pane,
             Some(argv),
         )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn split_pane_viewer_argv_command_with_ratio(
+        &mut self,
+        pane_id: PaneId,
+        direction: Direction,
+        ratio: f32,
+        rows: u16,
+        cols: u16,
+        cwd: Option<PathBuf>,
+        argv: &[String],
+        scrollback_limit_bytes: usize,
+        host_terminal_theme: crate::terminal_theme::TerminalTheme,
+    ) -> Option<std::io::Result<(usize, crate::workspace::tab::NewPane)>> {
+        let tab_idx = self.find_tab_index_for_pane(pane_id)?;
+        let pane_number = self.next_public_pane_number;
+        let tab_number = self.tabs[tab_idx].number;
+        let launch_env = self.launch_env_for_new_pane(tab_number, pane_number, Vec::new());
+        let tab = &mut self.tabs[tab_idx];
+        let previous_focus = tab.layout.focused();
+        tab.layout.focus_pane(pane_id);
+        let new_pane = match tab.split_focused_viewer_argv_command_with_ratio(
+            direction,
+            ratio,
+            rows,
+            cols,
+            cwd,
+            argv,
+            &launch_env,
+            scrollback_limit_bytes,
+            host_terminal_theme,
+        ) {
+            Ok(new_pane) => new_pane,
+            Err(err) => {
+                tab.layout.focus_pane(previous_focus);
+                return Some(Err(err));
+            }
+        };
+        self.register_new_pane_with_number(new_pane.pane_id, pane_number);
+        Some(Ok((tab_idx, new_pane)))
     }
 
     #[allow(clippy::too_many_arguments)]

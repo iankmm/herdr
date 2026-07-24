@@ -771,6 +771,31 @@ mod tests {
     }
 
     #[test]
+    fn replacing_split_child_via_stage_then_close_preserves_outer_geometry() {
+        let (mut layout, source) = TileLayout::new();
+        let old_viewer = layout.split_focused_with_ratio(Direction::Horizontal, 0.42);
+        layout.focus_pane(old_viewer);
+        let replacement = layout.split_focused_with_ratio(Direction::Horizontal, 0.5);
+
+        layout.focus_pane(old_viewer);
+        assert!(layout.close_focused());
+
+        assert_eq!(layout.pane_ids(), vec![source, replacement]);
+        assert_eq!(layout.focused(), replacement);
+        assert_eq!(
+            pane_rect(&layout, source),
+            Rect::new(0, 0, 42, 40),
+            "source pane geometry should not move during viewer replacement"
+        );
+        assert_eq!(
+            pane_rect(&layout, replacement),
+            Rect::new(42, 0, 58, 40),
+            "replacement should occupy the old viewer's exact region"
+        );
+        assert_eq!(split_snapshot(&layout), vec![(Direction::Horizontal, 0.42)]);
+    }
+
+    #[test]
     fn resize_pane_preserves_focus_and_reports_change() {
         let mut layout = sample_layout();
         let original_focus = layout.focused();

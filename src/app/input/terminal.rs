@@ -904,6 +904,44 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn pane_cell_file_reference_resolver_finds_path_and_location() {
+        let line = "Read ./src/app/actions.rs:472:5 for the handler";
+        let (app, _info) = app_with_screen_bytes(line.as_bytes());
+        let pane_id = app.state.workspaces[0].tabs[0].root_pane;
+        let col = line.find("actions").expect("file name") as u16;
+
+        assert_eq!(
+            app.state
+                .file_reference_at_pane_cell(&app.terminal_runtimes, pane_id, 0, col),
+            Some(crate::file_reference::FileReference {
+                path: "./src/app/actions.rs".into(),
+                line: Some(472),
+                column: Some(5),
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn pane_cell_file_reference_resolver_finds_soft_wrapped_path() {
+        let (_app, info) = app_with_screen_bytes(b"");
+        let prefix = "./src/";
+        let padding = "a".repeat(info.inner_rect.width as usize - prefix.len());
+        let reference = format!("{prefix}{padding}/screen.rs:9");
+        let (app, _info) = app_with_screen_bytes(reference.as_bytes());
+        let pane_id = app.state.workspaces[0].tabs[0].root_pane;
+
+        assert_eq!(
+            app.state
+                .file_reference_at_pane_cell(&app.terminal_runtimes, pane_id, 1, 2),
+            Some(crate::file_reference::FileReference {
+                path: format!("{prefix}{padding}/screen.rs"),
+                line: Some(9),
+                column: None,
+            })
+        );
+    }
+
+    #[tokio::test]
     async fn pane_cell_url_resolver_finds_soft_wrapped_url() {
         let (_app, info) = app_with_screen_bytes(b"");
         let prefix = "https://example.com/";

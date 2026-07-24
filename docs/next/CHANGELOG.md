@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Added
+- Added `ctrl+click` file references in terminal panes. Herdr resolves visible paths relative to the source pane, opens them in a managed read-only Vim pane on the right, and smoothly replaces that viewer when the same source pane opens another file.
+
 ### Changed
 - Relicensed Herdr from AGPL-3.0-or-later to Apache-2.0.
 

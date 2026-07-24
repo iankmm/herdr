@@ -3081,6 +3081,37 @@
           ],
           "type": "object"
         },
+        "PaneViewFileParams": {
+          "properties": {
+            "column": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "line": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "path": {
+              "type": "string"
+            },
+            "target_pane_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "target_pane_id",
+            "path"
+          ],
+          "type": "object"
+        },
         "PaneWaitForOutputParams": {
           "properties": {
             "lines": {
@@ -4982,6 +5013,22 @@
             },
             "params": {
               "$ref": "#/schemas/request/$defs/PaneSplitParams"
+            }
+          },
+          "required": [
+            "method",
+            "params"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "method": {
+              "const": "pane.view_file",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/schemas/request/$defs/PaneViewFileParams"
             }
           },
           "required": [
